@@ -33,15 +33,24 @@ Windowsの**従来版Outlook**で、通常の送信操作の直後・実際の�
 
 ## CLIビルドとテスト
 
-単体テストはSDK形式のプロジェクトなので、`dotnet` CLIでビルドと実行ができます。VSTO本体とは独立しています。
+VSTO本体にはVisual Studio Build Toolsの.NET Framework版MSBuildを使い、独立した単体テストとC#書式チェックには`dotnet` CLIを使います。
+
+| 処理 | 使用するツール |
+|---|---|
+| VSTO本体のビルド・静的解析・署名・配布物生成 | `MSBuild.exe /restore /t:Publish` |
+| 単体テストのビルド・実行 | `dotnet run` |
+| C#書式チェック | `dotnet format whitespace` |
+| PowerShellリント | PSScriptAnalyzer |
+
+Microsoftは[VSTO build tools](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-build-tools?view=vs-2022)を提供しており、[VSTOは.NET Frameworkに依存する](https://learn.microsoft.com/en-us/visualstudio/vsto/create-vsto-add-ins-for-office-by-using-visual-studio?view=vs-2022)構成です。既存のVSTOビルドタスクには現行.NETで動かない処理があるため、本体のPublishには.NET Framework版MSBuildを使用します。一方、SDK形式の単体テストは`net48`向けでも`dotnet`でビルド・実行できます。対象フレームワークとビルドタスクの実行ランタイムは別です。
+
+ツールの一本化のためにVSTOタスクを独自実装せず、各処理に対応する標準ツールを直接呼びます。`dotnet publish`の依存解決・API非互換・CLR4タスクホストについての実測結果は[検証記録](docs/VERIFICATION.md)にまとめています。
+
+単体テスト:
 
 ```powershell
 dotnet run --project tests/RecipientConfirm.Tests/RecipientConfirm.Tests.csproj --configuration Release
 ```
-
-`dotnet` CLIは.NET Framework 4.8向けのコンパイルに使用できます。ただし、**既存のVSTOタスクを変更せず、`dotnet publish`だけで配布物生成まで完了することはできません**。[追加検証](https://github.com/kazuki0824/outlook_window/actions/runs/41045075845)では、ターゲット・参照先に加えてGACの依存DLLをVSTOタスクの隣に配置すると、以前失敗した署名設定チェックを通過しました。しかし次の`FindRibbons`が`Assembly.ReflectionOnlyLoadFrom`を呼び、`PlatformNotSupportedException`で停止しました。このAPIは[.NET Core / .NET 5以降では未対応](https://learn.microsoft.com/en-us/dotnet/api/system.reflection.assembly.reflectiononlyloadfrom?view=net-10.0)です。対象フレームワークではなく、ビルド中に実行されるVSTOタスクの互換性が制約です。CLR4タスクホストへの引き渡しもMSB4216で失敗しました。条件と結果は[検証記録](docs/VERIFICATION.md)に記載しています。
-
-`dotnet`版MSBuild上で完結するには、VSTOタスクの移植・置換が必要です。.NET Frameworkの別プロセスに代行させる方法では、.NET SDKだけでは完結しません。本構成では既存VSTO処理を維持し、その実行に.NET Framework版MSBuildを使用します。
 
 VSTOの署名・配布物生成は、標準のMSBuild Publishターゲットを直接実行します。Publishにはビルドも含まれるため、先にソリューション全体をビルドする必要はありません。
 
