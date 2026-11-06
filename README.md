@@ -33,13 +33,24 @@ Windowsの**従来版Outlook**で、通常の送信操作の直後・実際の�
 
 ## CLIビルドとテスト
 
-単体テストはSDK形式のプロジェクトなので、`dotnet` CLIでビルドと実行ができます。VSTO本体とは独立しています。
+VSTO本体にはVisual Studio Build Toolsの.NET Framework版MSBuildを使い、独立した単体テストとC#書式チェックには`dotnet` CLIを使います。
+
+| 処理 | 使用するツール |
+|---|---|
+| VSTO本体のビルド・静的解析・署名・配布物生成 | `MSBuild.exe /restore /t:Publish` |
+| 単体テストのビルド・実行 | `dotnet run` |
+| C#書式チェック | `dotnet format whitespace` |
+| PowerShellリント | PSScriptAnalyzer |
+
+Microsoftは[VSTO build tools](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-build-tools?view=vs-2022)を提供しており、[VSTOは.NET Frameworkに依存する](https://learn.microsoft.com/en-us/visualstudio/vsto/create-vsto-add-ins-for-office-by-using-visual-studio?view=vs-2022)構成です。既存のVSTOビルドタスクには現行.NETで動かない処理があるため、本体のPublishには.NET Framework版MSBuildを使用します。一方、SDK形式の単体テストは`net48`向けでも`dotnet`でビルド・実行できます。対象フレームワークとビルドタスクの実行ランタイムは別です。
+
+ツールの一本化のためにVSTOタスクを独自実装せず、各処理に対応する標準ツールを直接呼びます。`dotnet publish`の依存解決・API非互換・CLR4タスクホストについての実測結果は[検証記録](docs/VERIFICATION.md)にまとめています。
+
+単体テスト:
 
 ```powershell
 dotnet run --project tests/RecipientConfirm.Tests/RecipientConfirm.Tests.csproj --configuration Release
 ```
-
-VSTO本体は`dotnet` CLIへそのまま置き換えられません。[.NET SDK 10.0.403での検証](https://github.com/kazuki0824/outlook_window/actions/runs/40982783820)では、ターゲットと参照DLLを補うとDLLのコンパイルまでは成功しましたが、VSTOの`VerifyClickOnceSigningSettings`タスクで依存DLLの読み込みに失敗しました（MSB4018）。SDKだけでVSTO配布物を生成できた結果ではありません。追加の依存解決やタスクの移植が不可能だと証明したものでもありません。
 
 VSTOの署名・配布物生成は、標準のMSBuild Publishターゲットを直接実行します。Publishにはビルドも含まれるため、先にソリューション全体をビルドする必要はありません。
 
@@ -87,10 +98,10 @@ VSTOInstallerの信頼確認は表示されます。自己署名証明書の受�
 | 単体テスト | SDK形式のテストプロジェクトを`dotnet run`でビルド・実行。18件のいずれかが失敗すれば非ゼロ終了 |
 | ビルド・配布物 | MSBuildと開発用証明書でビルドし、DLL・マニフェスト・.vstoの存在も検査 |
 
-ローカルでのリントには.NET 10 SDKとPSScriptAnalyzerが必要です。
+ローカルでのリントには.NET 10 SDKとPSScriptAnalyzerが必要です。次の導入・実行例は、PSResourceGetを同梱するPowerShell 7.4以降（`pwsh`）で実行します。CIも同じシェルと導入コマンドを使用します。
 
 ```powershell
-Install-Module PSScriptAnalyzer -RequiredVersion 1.23.0 -Scope CurrentUser
+Install-PSResource -Name PSScriptAnalyzer -Version 1.23.0 -Repository PSGallery -Scope CurrentUser -TrustRepository
 .\scripts\lint.ps1
 ```
 
