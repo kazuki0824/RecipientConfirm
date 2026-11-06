@@ -98,10 +98,10 @@ VSTOInstallerの信頼確認は表示されます。自己署名証明書の受�
 | 単体テスト | SDK形式のテストプロジェクトを`dotnet run`でビルド・実行。18件のいずれかが失敗すれば非ゼロ終了 |
 | ビルド・配布物 | MSBuildと開発用証明書でビルドし、DLL・マニフェスト・.vstoの存在も検査 |
 
-ローカルでのリントには.NET 10 SDKとPSScriptAnalyzerが必要です。
+ローカルでのリントには.NET 10 SDKとPSScriptAnalyzerが必要です。次の導入・実行例は、PSResourceGetを同梱するPowerShell 7.4以降（`pwsh`）で実行します。CIも同じシェルと導入コマンドを使用します。
 
 ```powershell
-Install-Module PSScriptAnalyzer -RequiredVersion 1.23.0 -Scope CurrentUser
+Install-PSResource -Name PSScriptAnalyzer -Version 1.23.0 -Repository PSGallery -Scope CurrentUser -TrustRepository
 .\scripts\lint.ps1
 ```
 

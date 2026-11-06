@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        shell: powershell
+        shell: pwsh
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -26,8 +26,7 @@ jobs:
           vs-version: '[17.0,18.0)'
       - name: Install PowerShell linter
         run: |
-          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
-          Install-Module PSScriptAnalyzer -RequiredVersion 1.23.0 -Repository PSGallery -Scope CurrentUser -Force
+          Install-PSResource -Name PSScriptAnalyzer -Version 1.23.0 -Repository PSGallery -Scope CurrentUser -TrustRepository
       - name: Lint C# formatting and PowerShell
         run: .\scripts\lint.ps1
       - name: Run unit tests with dotnet CLI
